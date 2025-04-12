@@ -67,7 +67,7 @@ if st.button("Send") and user_input.strip():
     chat_context.append({"role": "user", "content": user_input})
 
     try:
-        response = openai.ChatCompletion.create(
+        response = openai.chat.completions.create(
             model="gpt-3.5-turbo",
             messages=chat_context,
             temperature=0.7
