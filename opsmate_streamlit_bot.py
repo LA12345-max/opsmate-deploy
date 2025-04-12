@@ -7,8 +7,11 @@ from datetime import datetime
 
 openai.api_key = st.secrets["OPENAI_API_KEY"]
 
-st.set_page_config(page_title="OpsMate AI", page_icon="🤖")
-st.title("🤖 OpsMate AI Assistant")
+st.set_page_config(page_title="OpsMate AI Assistant", page_icon="🤖", layout="wide")
+
+st.markdown("<h1 style='text-align: center; color: #4CAF50;'>🤖 OpsMate AI</h1>", unsafe_allow_html=True)
+st.markdown("<p style='text-align: center;'>Your smart assistant for finance, sales, and support teams</p>", unsafe_allow_html=True)
+st.divider()
 
 personas = {
     "BookkeepingBot": "You are BookkeepingBot, expert in business finances, compliance, and automation.",
@@ -43,35 +46,43 @@ def get_history(user_id, max_entries=5):
     data = load_memory()
     return data.get(user_id, [])[-max_entries:]
 
-user_id = st.text_input("Enter your user ID", "demo_user")
-selected_persona = st.selectbox("Select a persona", list(personas.keys()))
-user_input = st.text_input("Ask OpsMate something:")
+with st.sidebar:
+    st.header("🔧 Settings")
+    user_id = st.text_input("User ID", value="demo_user")
+    selected_persona = st.selectbox("Choose Persona", list(personas.keys()))
+    show_history = st.checkbox("Show Conversation History")
+
+st.markdown("<div style='margin-top: 20px;'></div>", unsafe_allow_html=True)
+user_input = st.text_input("💬 Ask something:", placeholder="E.g., How do I automate invoicing?", key="user_input")
 
 if st.button("Send") and user_input.strip():
     persona_prompt = personas[selected_persona]
     history = get_history(user_id)
-    context = "\n".join([f"User: {m['user']}\nOpsMate: {m['bot']}" for m in history])
-    full_prompt = f"""{persona_prompt}
-{context}
-User: {user_input}
-OpsMate:"""
+    chat_context = [
+        {"role": "system", "content": persona_prompt}
+    ]
+    for entry in history:
+        chat_context.append({"role": "user", "content": entry["user"]})
+        chat_context.append({"role": "assistant", "content": entry["bot"]})
+    chat_context.append({"role": "user", "content": user_input})
 
     try:
-        response = openai.Completion.create(
-            engine="text-davinci-003",
-            prompt=full_prompt,
-            max_tokens=300,
+        response = openai.ChatCompletion.create(
+            model="gpt-3.5-turbo",
+            messages=chat_context,
             temperature=0.7
         )
-        reply = response.choices[0].text.strip()
+        reply = response.choices[0].message.content.strip()
         st.success(f"OpsMate: {reply}")
         add_memory(user_id, user_input, reply)
     except Exception as e:
         st.error(f"Error: {str(e)}")
 
-if st.checkbox("Show past conversation"):
-    history = get_history(user_id, 10)
-    for entry in history:
-        st.markdown(f"**You:** {entry['user']}")
-        st.markdown(f"**OpsMate:** {entry['bot']}")
+if show_history:
+    st.subheader("🕒 Past Conversations")
+    full_history = get_history(user_id, 10)
+    for entry in full_history:
+        st.markdown(f"**🧑 You:** {entry['user']}")
+        st.markdown(f"**🤖 OpsMate:** {entry['bot']}")
         st.markdown("---")
+
